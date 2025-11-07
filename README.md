@@ -1,29 +1,57 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/HlDpWB5G)
-# zbx7-auto-reg
+V INSTALLU: 
 
-The independent work - Vagrant and Zabbix Agent2 7.0 LTS - Auto-registration to
-[Zabbix pfSense](https://enceladus.pfsense.cz)
+#!/usr/bin/env bash
 
-# Zabbix pfSense monitoring - Linux distribution by Agent2
+# Aktualizace systému
+sudo apt-get update
 
-Pomocí Vagrant si vytvořte server s libovolnou Linux distribucí. Instalujte
-na nej  Zabbix Agent2 a upravte konfiguraci tak, aby se tento host
-automaticky registroval na privátní - [Zabbix pfSense](https://enceladus.pfsense.cz).
+# Instalace základních nástrojů
+sudo apt-get install -y wget gnupg net-tools
 
-![Ubuntu Zabbix Agent2](./Images/osy-Ubuntu-ZabbixAgent2.webp)
+# Přidání Zabbix repozitáře
+wget https://repo.zabbix.com/zabbix/7.0/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.0+debian11_all.deb
+sudo dpkg -i zabbix-release_latest_7.0+debian11_all.deb
+sudo apt-get update
 
-## Požadované známkované úkoly
+# Instalace Zabbix Agenta 2 s pluginy
+sudo apt-get install -y zabbix-agent2 zabbix-agent2-plugin-*
 
-- Přihlašte se na Zabbix server Enceladus pod účtem spos a ověřte kolik hostů je monitorováno v tomto zabbixu.
-- Vytvořte si adresář s konfigurací, která zajistí deploy Vámi zvolené Linuxové distribuce pomocí Vagrant.
-- Vytvořte instalační a konfigurační scripty tak, aby jste nainstalovali Zabbix agent2 verze 7.0 LTS do VM a nastavili konfiguraci agenta pro auto-registraci na Zabbix server enceladus.pfsense.cz. Akce na Enceladu má nastavenu takovou podmínku (Host metadata contains SPOS)
-- Výsledný Váš registrovaný host s unikátním jmenem vložte jako Screenshot do adresáře Images.
-- Svého registrovaného hosta vyexportuje v libovolném formátu YAML, XML nebo JSON jako soubor a vložte do Vašeho projektu.
-- Upravte README.md tak, aby obsohovalo informace o Vašich změnách v tomto zadání.
+# Spuštění a aktivace služby
+sudo systemctl enable zabbix-agent2
+sudo systemctl restart zabbix-agent2
 
-# Nápověda
 
-- Zabbix 7.0 LTS [auto-registration](https://www.zabbix.com/documentation/7.0/en/manual/discovery/auto_registration)
-- [Vagrant examples](https://github.com/sposdknl/2025-sposdk-osy/tree/main/Vagrant)
+V CONFIGU:
 
-...
+#!/usr/bin/env bash
+
+UNIQUE_HOSTNAME="debian-baudysm"
+SHORT_HOSTNAME=$(echo "$UNIQUE_HOSTNAME" | cut -d'-' -f1,2)
+
+# Záloha konfiguračního souboru
+sudo cp -v /etc/zabbix/zabbix_agent2.conf /etc/zabbix/zabbix_agent2.conf-orig
+
+# Nastavení hostname a serveru
+sudo sed -i "/^Hostname=/c\Hostname=$SHORT_HOSTNAME" /etc/zabbix/zabbix_agent2.conf
+grep -q "^Hostname=" /etc/zabbix/zabbix_agent2.conf || echo "Hostname=$SHORT_HOSTNAME" | sudo tee -a /etc/zabbix/zabbix_agent2.conf
+
+sudo sed -i "/^Server=/c\Server=enceladus.pfsense.cz" /etc/zabbix/zabbix_agent2.conf
+grep -q "^Server=" /etc/zabbix/zabbix_agent2.conf || echo "Server=enceladus.pfsense.cz" | sudo tee -a /etc/zabbix/zabbix_agent2.conf
+
+sudo sed -i "/^ServerActive=/c\ServerActive=enceladus.pfsense.cz" /etc/zabbix/zabbix_agent2.conf
+grep -q "^ServerActive=" /etc/zabbix/zabbix_agent2.conf || echo "ServerActive=enceladus.pfsense.cz" | sudo tee -a /etc/zabbix/zabbix_agent2.conf
+
+# Timeout a metadata
+sudo sed -i "/^Timeout=/c\Timeout=30" /etc/zabbix/zabbix_agent2.conf
+grep -q "^Timeout=" /etc/zabbix/zabbix_agent2.conf || echo "Timeout=30" | sudo tee -a /etc/zabbix/zabbix_agent2.conf
+
+sudo sed -i "/^HostMetadata=/c\HostMetadata=SPOS" /etc/zabbix/zabbix_agent2.conf
+grep -q "^HostMetadata=" /etc/zabbix/zabbix_agent2.conf || echo "HostMetadata=SPOS" | sudo tee -a /etc/zabbix/zabbix_agent2.conf
+
+# Zobrazení rozdílů a restart služby
+sudo diff -u /etc/zabbix/zabbix_agent2.conf-orig /etc/zabbix/zabbix_agent2.conf
+sudo systemctl restart zabbix-agent2
+
+
+
+![Obrázek(Host.png)
